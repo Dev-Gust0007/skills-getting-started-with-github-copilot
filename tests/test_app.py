@@ -17,13 +17,18 @@ ORIGINAL_ACTIVITIES = copy.deepcopy(app_module.activities)
 
 @pytest.fixture(autouse=True)
 def reset_activities():
-    # Reset the in-memory activities before each test
+    # Arrange (fixture): restore in-memory activities before each test
     app_module.activities = copy.deepcopy(ORIGINAL_ACTIVITIES)
     yield
 
 
 def test_get_activities():
+    # Arrange: client ready
+
+    # Act
     resp = client.get("/activities")
+
+    # Assert
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, dict)
@@ -31,41 +36,46 @@ def test_get_activities():
 
 
 def test_signup_and_duplicate():
+    # Arrange
     activity_name = "Chess Club"
     email = "test.user@example.com"
     path = quote(activity_name, safe='')
 
-    # First signup should succeed
-    r1 = client.post(f"/activities/{path}/signup", params={"email": email})
-    assert r1.status_code == 200
+    # Act
+    first = client.post(f"/activities/{path}/signup", params={"email": email})
+    second = client.post(f"/activities/{path}/signup", params={"email": email})
 
-    # Duplicate signup should fail (400)
-    r2 = client.post(f"/activities/{path}/signup", params={"email": email})
-    assert r2.status_code == 400
+    # Assert
+    assert first.status_code == 200
+    assert second.status_code == 400
 
 
 def test_delete_participant():
+    # Arrange
     activity_name = "Chess Club"
     email = "remove.me@example.com"
     path = quote(activity_name, safe='')
 
-    # Sign up the participant first
-    r1 = client.post(f"/activities/{path}/signup", params={"email": email})
-    assert r1.status_code == 200
+    signup = client.post(f"/activities/{path}/signup", params={"email": email})
+    assert signup.status_code == 200
 
-    # Now delete the participant
-    r2 = client.delete(f"/activities/{path}/participants", params={"email": email})
-    assert r2.status_code == 200
+    # Act
+    deleted = client.delete(f"/activities/{path}/participants", params={"email": email})
 
-    # Verify participant removed
+    # Assert
+    assert deleted.status_code == 200
     activities = client.get("/activities").json()
     assert email not in activities[activity_name]["participants"]
 
 
 def test_delete_nonexistent():
+    # Arrange
     activity_name = "Chess Club"
     email = "i.dont.exist@example.com"
     path = quote(activity_name, safe='')
 
-    r = client.delete(f"/activities/{path}/participants", params={"email": email})
-    assert r.status_code == 404
+    # Act
+    resp = client.delete(f"/activities/{path}/participants", params={"email": email})
+
+    # Assert
+    assert resp.status_code == 404
